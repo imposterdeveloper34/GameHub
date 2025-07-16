@@ -45,6 +45,7 @@ export default function Register({ onSwitch, onRegister }) {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required
+                autoComplete="off"
             />
             <input
                 className="auth-input"

@@ -39,6 +39,7 @@ export default function Login({ onSwitch, onLogin }) {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 required
+                autoComplete="off"
             />
             <input
                 className="auth-input"
