@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 import AddFriendModal from './AddFriendModal'
+import Messages from './Messages'
 
 const API_URL = 'https://gamehub-vnum.onrender.com'
 const SOCKET_URL = API_URL
@@ -99,56 +100,8 @@ export default function Home({ onLogout }) {
         </div>
     )
     if (page === 'messages') content = (
-        <div className="messages-section">
-            <h1 className="page-title">Mesajlar</h1>
-            {!activeChat && (
-                <>
-                    <div className="chats-list">
-                        {friendsLoading ? <div>Yükleniyor...</div> : friends.length === 0 ? <div>Arkadaş yok.</div> : friends.map(friend => (
-                            <div className="chat-item" key={friend.id} onClick={() => setActiveChat(friend)}>
-                                <div className="chat-avatar">{friend.name[0]}</div>
-                                <div className="chat-info">
-                                    <div className="chat-name">{friend.name}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button className="fab-btn" onClick={() => setShowFriends(true)} title="Yeni Mesaj">
-                        <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#646cff" /><path d="M8 12h8M12 8v8" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
-                    </button>
-                    {showFriends && (
-                        <AddFriendModal
-                            friends={friends}
-                            newFriend={newFriend}
-                            setNewFriend={setNewFriend}
-                            handleAddFriend={handleAddFriend}
-                            onClose={() => setShowFriends(false)}
-                        />
-                    )}
-                </>
-            )}
-            {activeChat && (
-                <div className="messages-chat">
-                    <div className="chat-header">
-                        <button className="chat-back-btn" onClick={() => setActiveChat(null)}>&larr;</button>
-                        <div className="chat-avatar">{activeChat.name[0]}</div>
-                        <div className="chat-name">{activeChat.name}</div>
-                    </div>
-                    <div className="messages-list">
-                        {messagesLoading ? <div>Yükleniyor...</div> : messages.length === 0 ? <div>Mesaj yok.</div> : messages.map(msg => (
-                            <div key={msg.id} className={msg.sender_id === activeChat.id ? 'message-item received' : 'message-item sent'}>
-                                {msg.content}
-                            </div>
-                        ))}
-                    </div>
-                    <form className="message-form" onSubmit={handleSendMessage}>
-                        <input className="message-input" type="text" placeholder="Mesaj yaz..." value={messageInput} onChange={e => setMessageInput(e.target.value)} />
-                        <button className="message-send-btn" type="submit">Gönder</button>
-                    </form>
-                </div>
-            )}
-        </div>
-    );
+        <Messages token={localStorage.getItem('token')} userId={profile?.id} />
+    )
     if (page === 'profile') content = (
         <div className="profile-section">
             {profileLoading ? (
