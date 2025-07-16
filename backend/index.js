@@ -147,6 +147,7 @@ app.get('/friends', verifyToken, async (req, res) => {
 app.post('/messages', verifyToken, async (req, res) => {
     const { to, content } = req.body;
     if (!to || !content) return res.status(400).json({ error: 'Alıcı ve mesaj içeriği gerekli.' });
+    console.log('Mesaj gönder:', req.user.userId, '->', to);
     const { data, error } = await supabase.from('messages').insert([
         { sender_id: req.user.userId, receiver_id: to, content }
     ]).select().single();
