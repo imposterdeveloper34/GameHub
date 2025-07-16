@@ -36,15 +36,17 @@ export default function Messages({ token, userId }) {
             .catch(() => setMessages([]))
     }, [token, activeChat])
 
-    // Socket bağlantısı
+    // Socket bağlantısı ve anlık mesaj dinleme
     useEffect(() => {
         if (!userId) return
         const socket = io(SOCKET_URL)
         socket.emit('join', userId)
         socket.on('new_message', (msg) => {
+            // Eğer aktif chat bu kullanıcı ise anlık ekle
             if (activeChat && msg.sender_id === activeChat.id) {
                 setMessages(prev => [...prev, msg])
             }
+            // Eğer aktif chat açık değilse, istersen bildirim gösterebilirsin
         })
         socketRef.current = socket
         return () => socket.disconnect()

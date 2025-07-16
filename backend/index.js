@@ -24,6 +24,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 io.on('connection', (socket) => {
     // Kullanıcı, frontend'den userId ile join olmalı
     socket.on('join', (userId) => {
+        console.log('Socket join:', userId);
         socket.join(userId);
     });
 });
@@ -147,13 +148,17 @@ app.get('/friends', verifyToken, async (req, res) => {
 app.post('/messages', verifyToken, async (req, res) => {
     const { to, content } = req.body;
     if (!to || !content) return res.status(400).json({ error: 'Alıcı ve mesaj içeriği gerekli.' });
-    console.log('Mesaj gönder:', req.user.userId, '->', to);
+    console.log('Mesaj gönder:', req.user.userId, '->', to, 'içerik:', content);
     const { data, error } = await supabase.from('messages').insert([
         { sender_id: req.user.userId, receiver_id: to, content }
     ]).select().single();
-    if (error) return res.status(500).json({ error: error.message });
-    // Mesajı karşı tarafa anlık ilet
+    if (error) {
+        console.log('Mesaj insert hatası:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+    console.log('Mesaj başarıyla eklendi:', data);
     io.to(to).emit('new_message', data);
+    console.log('Emit new_message to:', to, data);
     res.json({ success: true });
 });
 
