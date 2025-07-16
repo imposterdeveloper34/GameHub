@@ -4,6 +4,8 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors());
@@ -14,6 +16,17 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY // Değiştirildi
 );
 const JWT_SECRET = process.env.JWT_SECRET;
+
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+// Socket.io bağlantısı
+io.on('connection', (socket) => {
+    // Kullanıcı, frontend'den userId ile join olmalı
+    socket.on('join', (userId) => {
+        socket.join(userId);
+    });
+});
 
 app.get('/', (req, res) => {
     res.send('GameHub Backend Çalışıyor!');
@@ -131,8 +144,10 @@ app.post('/messages', verifyToken, async (req, res) => {
     if (!to || !content) return res.status(400).json({ error: 'Alıcı ve mesaj içeriği gerekli.' });
     const { data, error } = await supabase.from('messages').insert([
         { sender_id: req.user.userId, receiver_id: to, content }
-    ]);
+    ]).select().single();
     if (error) return res.status(500).json({ error: error.message });
+    // Mesajı karşı tarafa anlık ilet
+    io.to(to).emit('new_message', data);
     res.json({ success: true });
 });
 
@@ -172,6 +187,6 @@ app.get('/wins', verifyToken, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Backend sunucu çalışıyor: http://localhost:${PORT}`);
 }); 

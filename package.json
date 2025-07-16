@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/imposterdeveloper34/GameHub/issues"
   },
-  "homepage": "https://github.com/imposterdeveloper34/GameHub#readme"
+  "homepage": "https://github.com/imposterdeveloper34/GameHub#readme",
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
 }

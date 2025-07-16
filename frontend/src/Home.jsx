@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { io } from 'socket.io-client'
+
+const API_URL = 'https://gamehub-vnum.onrender.com'
+const SOCKET_URL = API_URL
 
 function TopBar({ title }) {
     return (
@@ -47,21 +51,41 @@ const wonGames = [
 
 export default function Home({ onLogout }) {
     const [page, setPage] = useState('home')
-    // Mesajlar için hook'lar her zaman tanımlı olmalı
-    const [showFriends, setShowFriends] = useState(false);
-    const [activeChat, setActiveChat] = useState(null);
-    const [newFriend, setNewFriend] = useState('');
-    const [friends, setFriends] = useState([
-        { id: 1, name: 'Ayşe' },
-        { id: 2, name: 'Mehmet' },
-        { id: 3, name: 'Zeynep' },
-    ]);
-    let nextFriendId = friends.length + 1;
+    // MESAJLAR STATE
+    const [friends, setFriends] = useState([])
+    const [chats, setChats] = useState([]) // Arkadaşlar ile son mesajlar
+    const [activeChat, setActiveChat] = useState(null)
+    const [messages, setMessages] = useState([])
+    const [messageInput, setMessageInput] = useState('')
+    const [showFriends, setShowFriends] = useState(false)
+    const [newFriend, setNewFriend] = useState('')
+    const [messagesLoading, setMessagesLoading] = useState(false)
+    const [friendsLoading, setFriendsLoading] = useState(false)
+    const [profile, setProfile] = useState(null)
+    const [profileLoading, setProfileLoading] = useState(true)
+    const [wins, setWins] = useState([])
 
-    const chats = [
-        { id: 1, name: 'Ayşe', last: 'Nasılsın?' },
-        { id: 2, name: 'Mehmet', last: 'Oyun başlasın!' },
-    ];
+    const socketRef = useRef(null)
+    // Kullanıcı id'sini localStorage'dan veya profile'dan al
+    const userId = profile?.id
+    // Socket bağlantısı
+    useEffect(() => {
+        if (!userId) return;
+        if (socketRef.current) return;
+        const socket = io(SOCKET_URL)
+        socket.emit('join', userId)
+        socket.on('new_message', (msg) => {
+            // Eğer aktif chat bu kullanıcı ise anlık ekle
+            if (activeChat && msg.sender_id === activeChat.id) {
+                setMessages(prev => [...prev, msg])
+            }
+        })
+        socketRef.current = socket
+        return () => {
+            socket.disconnect()
+            socketRef.current = null
+        }
+    }, [userId, activeChat])
 
     let content = null
     if (page === 'home') content = (
@@ -79,12 +103,11 @@ export default function Home({ onLogout }) {
             {!activeChat && (
                 <>
                     <div className="chats-list">
-                        {chats.map(chat => (
-                            <div className="chat-item" key={chat.id} onClick={() => setActiveChat(chat)}>
-                                <div className="chat-avatar">{chat.name[0]}</div>
+                        {friendsLoading ? <div>Yükleniyor...</div> : friends.length === 0 ? <div>Arkadaş yok.</div> : friends.map(friend => (
+                            <div className="chat-item" key={friend.id} onClick={() => setActiveChat(friend)}>
+                                <div className="chat-avatar">{friend.name[0]}</div>
                                 <div className="chat-info">
-                                    <div className="chat-name">{chat.name}</div>
-                                    <div className="chat-last">{chat.last}</div>
+                                    <div className="chat-name">{friend.name}</div>
                                 </div>
                             </div>
                         ))}
@@ -95,20 +118,14 @@ export default function Home({ onLogout }) {
                     {showFriends && (
                         <div className="friends-modal" onClick={() => setShowFriends(false)}>
                             <div className="friends-list" onClick={e => e.stopPropagation()}>
-                                <div className="friends-title">Arkadaş Seç</div>
+                                <div className="friends-title">Arkadaş Ekle</div>
                                 {friends.map(f => (
-                                    <div className="friend-item" key={f.id} onClick={() => { setActiveChat(f); setShowFriends(false); }}>
+                                    <div className="friend-item" key={f.id}>
                                         <div className="chat-avatar">{f.name[0]}</div>
                                         <div className="chat-name">{f.name}</div>
                                     </div>
                                 ))}
-                                <form className="add-friend-form" onSubmit={e => {
-                                    e.preventDefault();
-                                    if (newFriend.trim()) {
-                                        setFriends([...friends, { id: nextFriendId++, name: newFriend.trim() }]);
-                                        setNewFriend('');
-                                    }
-                                }}>
+                                <form className="add-friend-form" onSubmit={handleAddFriend}>
                                     <input className="add-friend-input" type="text" placeholder="Kullanıcı adı..." value={newFriend} onChange={e => setNewFriend(e.target.value)} />
                                     <button className="add-friend-btn" type="submit">Ekle</button>
                                 </form>
@@ -125,11 +142,14 @@ export default function Home({ onLogout }) {
                         <div className="chat-name">{activeChat.name}</div>
                     </div>
                     <div className="messages-list">
-                        <div className="message-item received">Merhaba {activeChat.name}!</div>
-                        <div className="message-item sent">Selam!</div>
+                        {messagesLoading ? <div>Yükleniyor...</div> : messages.length === 0 ? <div>Mesaj yok.</div> : messages.map(msg => (
+                            <div key={msg.id} className={msg.sender_id === activeChat.id ? 'message-item received' : 'message-item sent'}>
+                                {msg.content}
+                            </div>
+                        ))}
                     </div>
-                    <form className="message-form" onSubmit={e => { e.preventDefault(); }}>
-                        <input className="message-input" type="text" placeholder="Mesaj yaz..." />
+                    <form className="message-form" onSubmit={handleSendMessage}>
+                        <input className="message-input" type="text" placeholder="Mesaj yaz..." value={messageInput} onChange={e => setMessageInput(e.target.value)} />
                         <button className="message-send-btn" type="submit">Gönder</button>
                     </form>
                 </div>
@@ -138,37 +158,144 @@ export default function Home({ onLogout }) {
     );
     if (page === 'profile') content = (
         <div className="profile-section">
-            <div className="profile-avatar-img">
-                <img src="/assets/profile-photo.png" alt="Profil" />
-            </div>
-            <div className="profile-info">
-                <div className="profile-name">Mirac Kullanıcı</div>
-                <div className="profile-email">mirac@email.com</div>
-            </div>
-            <div className="profile-wins">
-                <div className="profile-wins-title big">Kazanılan Oyunlar</div>
-                <div className="profile-wins-table">
-                    <div className="profile-wins-table-header">
-                        <span>Oyun</span>
-                        <span>Adet</span>
+            {profileLoading ? (
+                <div>Yükleniyor...</div>
+            ) : profile ? (
+                <>
+                    <div className="profile-avatar-img">
+                        <img src="/assets/profile-photo.png" alt="Profil" />
                     </div>
-                    {wonGames.map((g, i) => (
-                        <div className="profile-wins-table-row" key={i}>
-                            <div className="profile-win-table-game">
-                                <img src={g.img} alt={g.name} />
-                                <span>{g.name}</span>
+                    <div className="profile-info">
+                        <div className="profile-name">{profile.username}</div>
+                        <div className="profile-email">ID: {profile.id}</div>
+                        <div className="profile-date">Kayıt: {new Date(profile.created_at).toLocaleString()}</div>
+                    </div>
+                    <div className="profile-wins">
+                        <div className="profile-wins-title big">Kazanılan Oyunlar</div>
+                        <div className="profile-wins-table">
+                            <div className="profile-wins-table-header">
+                                <span>Oyun</span>
+                                <span>Adet</span>
                             </div>
-                            <div className="profile-win-table-count">{g.count}</div>
+                            {wins.length === 0 && <div>Henüz kazanılan oyun yok.</div>}
+                            {wins.map((g, i) => (
+                                <div className="profile-wins-table-row" key={i}>
+                                    <div className="profile-win-table-game">
+                                        <span>{g.game_name}</span>
+                                    </div>
+                                    <div className="profile-win-table-count">{g.count}</div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </div>
+                    </div>
+                </>
+            ) : (
+                <div>Profil bulunamadı.</div>
+            )}
         </div>
     )
 
     let topBarTitle = 'Oyunlar';
     if (page === 'messages') topBarTitle = activeChat ? (activeChat.name || 'Mesajlar') : 'Mesajlar';
     if (page === 'profile') topBarTitle = 'Profil';
+
+    // PROFIL VERISI CEKME
+    useEffect(() => {
+        if (page !== 'profile') return;
+        const token = localStorage.getItem('token')
+        if (!token) return;
+        setProfileLoading(true)
+        fetch(`${API_URL}/profile`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setProfile(data.user))
+            .catch(() => setProfile(null))
+        fetch(`${API_URL}/wins`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setWins(data))
+            .catch(() => setWins([]))
+            .finally(() => setProfileLoading(false))
+    }, [page])
+
+    // Arkadaşları çek
+    useEffect(() => {
+        if (page !== 'messages') return;
+        const token = localStorage.getItem('token')
+        if (!token) return;
+        setFriendsLoading(true)
+        fetch(`${API_URL}/friends`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setFriends(data.map(f => ({ id: f.friend.id, name: f.friend.username }))))
+            .catch(() => setFriends([]))
+            .finally(() => setFriendsLoading(false))
+    }, [page])
+    // Aktif chat değişince mesajları çek
+    useEffect(() => {
+        if (!activeChat) return;
+        const token = localStorage.getItem('token')
+        if (!token) return;
+        setMessagesLoading(true)
+        fetch(`${API_URL}/messages?friend_id=${activeChat.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setMessages(data))
+            .catch(() => setMessages([]))
+            .finally(() => setMessagesLoading(false))
+    }, [activeChat])
+    // Arkadaş ekle
+    const handleAddFriend = async (e) => {
+        e.preventDefault();
+        if (!newFriend.trim()) return;
+        const token = localStorage.getItem('token')
+        if (!token) return;
+        const res = await fetch(`${API_URL}/friends`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ friend_username: newFriend.trim() })
+        })
+        if (res.ok) {
+            setNewFriend('');
+            // Arkadaş listesini tekrar çek
+            fetch(`${API_URL}/friends`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => setFriends(data.map(f => ({ id: f.friend.id, name: f.friend.username }))))
+        } else {
+            const data = await res.json();
+            alert(data.error || 'Arkadaş eklenemedi!')
+        }
+    }
+    // Mesaj gönder
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!messageInput.trim() || !activeChat) return;
+        const token = localStorage.getItem('token')
+        if (!token) return;
+        const res = await fetch(`${API_URL}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ to: activeChat.id, content: messageInput })
+        })
+        if (res.ok) {
+            setMessageInput('');
+            // Mesajları tekrar çek
+            fetch(`${API_URL}/messages?friend_id=${activeChat.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => setMessages(data))
+        } else {
+            const data = await res.json();
+            alert(data.error || 'Mesaj gönderilemedi!')
+        }
+    }
 
     return (
         <div className="layout">
