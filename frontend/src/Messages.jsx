@@ -40,8 +40,10 @@ export default function Messages({ token, userId }) {
     useEffect(() => {
         if (!userId) return
         const socket = io(SOCKET_URL)
+        console.log('Socket connected:', socket.id)
         socket.emit('join', userId)
         socket.on('new_message', (msg) => {
+            console.log('New message received:', msg)
             // Hem karşıdan gelen hem de kendi gönderdiğin mesajı anlık ekle
             if (activeChat && (msg.sender_id === activeChat.id || msg.sender_id === userId)) {
                 setMessages(prev => [...prev, msg])
