@@ -13,9 +13,7 @@ app.use(cors({
         'https://game-i1y4ko7f2-imposters-projects-870766c7.vercel.app',
         'http://localhost:5173'
     ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    credentials: true
 }));
 app.options('*', cors());
 app.use(express.json());
