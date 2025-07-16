@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
+import AddFriendModal from './AddFriendModal'
 
 const API_URL = 'https://gamehub-vnum.onrender.com'
 const SOCKET_URL = API_URL
@@ -116,21 +117,13 @@ export default function Home({ onLogout }) {
                         <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#646cff" /><path d="M8 12h8M12 8v8" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
                     </button>
                     {showFriends && (
-                        <div className="friends-modal" onClick={() => setShowFriends(false)}>
-                            <div className="friends-list" onClick={e => e.stopPropagation()}>
-                                <div className="friends-title">Arkadaş Ekle</div>
-                                {friends.map(f => (
-                                    <div className="friend-item" key={f.id}>
-                                        <div className="chat-avatar">{f.name[0]}</div>
-                                        <div className="chat-name">{f.name}</div>
-                                    </div>
-                                ))}
-                                <form className="add-friend-form" onSubmit={handleAddFriend}>
-                                    <input className="add-friend-input" type="text" placeholder="Kullanıcı adı..." value={newFriend} onChange={e => setNewFriend(e.target.value)} />
-                                    <button className="add-friend-btn" type="submit">Ekle</button>
-                                </form>
-                            </div>
-                        </div>
+                        <AddFriendModal
+                            friends={friends}
+                            newFriend={newFriend}
+                            setNewFriend={setNewFriend}
+                            handleAddFriend={handleAddFriend}
+                            onClose={() => setShowFriends(false)}
+                        />
                     )}
                 </>
             )}
