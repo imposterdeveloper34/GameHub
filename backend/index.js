@@ -120,11 +120,16 @@ app.post('/friends', verifyToken, async (req, res) => {
     // Kullanıcıyı bul
     const { data: friendUser, error: userError } = await supabase.from('users').select('id,username').eq('username', friend_username).single();
     if (userError || !friendUser) return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
-    // Arkadaşlık kaydı ekle
+    // Çift yönlü arkadaşlık ekle
     const { data, error } = await supabase.from('friends').insert([
-        { user_id: req.user.userId, friend_id: friendUser.id }
+        { user_id: req.user.userId, friend_id: friendUser.id },
+        { user_id: friendUser.id, friend_id: req.user.userId }
     ]);
     if (error) return res.status(500).json({ error: error.message });
+    // Bildirim mesajı (opsiyonel)
+    await supabase.from('messages').insert([
+        { sender_id: req.user.userId, receiver_id: friendUser.id, content: `${req.user.username} sizi arkadaş olarak ekledi!` }
+    ]);
     res.json({ success: true });
 });
 
